@@ -26,7 +26,7 @@ var VideoHeaders = map[string]string {
 	".mov": "video/quicktime",
 }
 
-const CHUNK_SIZE int64 = 128000;
+const CHUNK_SIZE int64 = 128_000;
 
 func SendChunk(writer http.ResponseWriter, request *http.Request) {
 
@@ -88,19 +88,21 @@ func SendChunk(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Accept-Ranges", "bytes")
 	writer.Header().Set("Connection", "keep-alive")
 	writer.Header().Set("Keep-Alive", "timeout=5, max=100")
-	writer.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end-1, totalContentSize))
+	writer.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end - 1, totalContentSize))
 
-	var bytesToRead = end - start;
+	var bytesToRead = end - start + 1;
 	var bytes = make([]byte, bytesToRead)
 
-	n, err := file.ReadAt(bytes, start)
+	n, err := file.ReadAt(bytes, start); _ = n
 
-	if err != nil && err.Error() != "EOF" {
+	fmt.Println(start, end - 1, bytesToRead)
+
+	if err != nil {
 		fmt.Println(err)
 	}
 
 	writer.WriteHeader(http.StatusPartialContent)
-	writer.Write(bytes[:n])
+	writer.Write(bytes)
 }
 
 func GetFileMetadata(writer http.ResponseWriter, request *http.Request) {
