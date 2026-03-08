@@ -1,4 +1,4 @@
-package handlers
+package streaming
 
 import (
 	"encoding/json"
@@ -94,8 +94,6 @@ func SendChunk(writer http.ResponseWriter, request *http.Request) {
 	var bytes = make([]byte, bytesToRead)
 
 	n, err := file.ReadAt(bytes, start); _ = n
-
-	fmt.Println(start, end - 1, bytesToRead)
 
 	if err != nil {
 		fmt.Println(err)
