@@ -38,15 +38,16 @@ type DownloadTask struct {
 	downloadedBytes int64
 }
 
-/*
-Maintains a queue of download tasks. The DownloadFile function adds a new task to the queue, and a separate goroutine can be used to process the queue and perform the actual downloads.
-*/
-var downloadQueue = make(chan DownloadTask, 100)
+type DownloadManager struct {
+	queue chan DownloadTask
 
-func DownloadFile(url string) {
-	task := DownloadTask{
+	Destination string
+}
+
+func (manager *DownloadManager) DownloadFile(url string) {
+	task := DownloadTask {
 		URL: url,
 	}
-
-	downloadQueue <- task
+	
+	manager.queue <- task
 }

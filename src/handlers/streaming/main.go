@@ -88,7 +88,10 @@ func SendChunk(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Accept-Ranges", "bytes")
 	writer.Header().Set("Connection", "keep-alive")
 	writer.Header().Set("Keep-Alive", "timeout=5, max=100")
-	writer.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end - 1, totalContentSize))
+	writer.Header().Set(
+		"Content-Range", 
+		fmt.Sprintf("bytes %d-%d/%d", start, end - 1, totalContentSize),
+	)
 
 	var bytesToRead = end - start + 1;
 	var bytes = make([]byte, bytesToRead)
