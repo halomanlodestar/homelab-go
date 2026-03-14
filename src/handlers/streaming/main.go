@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 )
 
 type FileDetails struct {
@@ -26,7 +24,7 @@ var VideoHeaders = map[string]string {
 	".mov": "video/quicktime",
 }
 
-const CHUNK_SIZE int64 = 128_000;
+const CHUNK_SIZE int64 = 100_000;
 
 func SendChunk(writer http.ResponseWriter, request *http.Request) {
 
@@ -68,18 +66,12 @@ func SendChunk(writer http.ResponseWriter, request *http.Request) {
 
 	var start int64 = 0
 
+	// Range header format is as follows:
+	// bytes=start-
 	rangeHeader := request.Header.Get("Range")
-	
-	if rangeHeader != "" {
-		ranges := rangeHeader[6:]
-		startRange := strings.Split(ranges, "-")[0]
-		start, err = strconv.ParseInt(startRange, 10, 64)
+	n, err := fmt.Sscanf(rangeHeader, "bytes=%d-", &start)
 
-		if err != nil {
-			encoder.Encode(err.Error())
-			return
-		}
-	}
+	// fmt.Println(rangeHeader)
 
 	totalContentSize := metadata.Size;
 	end := min(totalContentSize, start + CHUNK_SIZE)
@@ -92,11 +84,12 @@ func SendChunk(writer http.ResponseWriter, request *http.Request) {
 		"Content-Range", 
 		fmt.Sprintf("bytes %d-%d/%d", start, end - 1, totalContentSize),
 	)
+	writer.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%s", metadata.Name))
 
 	var bytesToRead = end - start + 1;
 	var bytes = make([]byte, bytesToRead)
 
-	n, err := file.ReadAt(bytes, start); _ = n
+	n, err = file.ReadAt(bytes, start); _ = n
 
 	if err != nil {
 		fmt.Println(err)
