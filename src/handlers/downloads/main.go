@@ -132,22 +132,21 @@ func (manager *DownloadManager) DownloadFile(url string) error {
 		contentRange := responseHeader.Get("Content-Range")
 		var start, end, totalContentSize int64
 		fmt.Sscanf(contentRange, "bytes %d-%d/%d", &start, &end, &totalContentSize)
-		chunkSize := end - start
+		chunkSize := end - start + 1
+		fmt.Println(contentRange)
 
 		// write data to the file
 		bodyReader := res.Body; _ = bodyReader
 		
 		data := make([]byte, chunkSize)
-		bodyReader.Read(data)
-		nn, err := writer.Write(data)
+		n, err := bodyReader.Read(data)
+		nn, err := writer.Write(data[:n])
 
 		if err != nil {
 			fmt.Println(nn, err)
 		}
 
-		writer.Flush()
-
-		fmt.Println(len(data), chunkSize)
+		// fmt.Println(len(data), chunkSize)
 
 		if end + 1 == totalContentSize || end == totalContentSize {
 			downloading = false;
@@ -157,7 +156,7 @@ func (manager *DownloadManager) DownloadFile(url string) error {
 			continue
 		}
 
-		headers.Set("Range", fmt.Sprintf("bytes=%d-", end))
+		headers.Set("Range", fmt.Sprintf("bytes=%d-", end + 1))
 	}
 
 	return nil
