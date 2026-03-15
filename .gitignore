@@ -14,6 +14,10 @@ files
 *.so
 *.dylib
 
+# everything in downloads folder that isn't .keep file
+downloads/*
+!downloads/.keep
+
 # Test binary, built with `go test -c`
 *.test
 

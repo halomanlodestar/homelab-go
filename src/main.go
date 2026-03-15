@@ -12,6 +12,7 @@ func main() {
 	http.HandleFunc("/", streaming.ListFiles)
 	http.HandleFunc("/file", streaming.SendChunk)
 	http.HandleFunc("/try", downloads.TestDownload)
+	http.HandleFunc("/download", downloads.DownloadFileHandler)
 	
 	fmt.Println("Listening at 4080")
 	http.ListenAndServe(":4080", nil);

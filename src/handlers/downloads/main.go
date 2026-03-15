@@ -13,6 +13,7 @@ import (
 	"mime"
 	"net/http"
 	"os"
+	"time"
 )
 
 type DownloadTask struct {
@@ -72,47 +73,36 @@ func isUrlValid(_ string) bool {
 	return true
 }
 
-func (manager *DownloadManager) DownloadFile(url string) error {
+func DownloadFileHandler(w http.ResponseWriter, r *http.Request) {
 
-	// 1. check whether the url is valid or not
-	if !isUrlValid(url) {
-		return errors.New("Invalid URL")
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 
-	task := DownloadTask {
-		URL: url,
+	cwd, err := os.Getwd()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	query := r.URL.Query()
+	url := query.Get("url")
+
+	manager := DownloadManager {
+		Destination: cwd + "/downloads",
 	}
 	
-	manager.queue = append(manager.queue, task)
+	manager.DownloadFile(url)
+}
+
+func DownloadFromStream(url string, writer *bufio.Writer) error {
 
 	downloading := true
 
 	client := http.Client {}
 	headers := http.Header {}
-
-	// first get headers
-	req, _ := http.Get(url)
-
-	if req.StatusCode != 206 {
-			fmt.Println("Download doesn't support streams")
-			downloading = false
-	}
-
-	// create a file
-	contentDisposition := req.Header.Get("Content-Disposition")
-
-	mediaType, metadata, _ := mime.ParseMediaType(contentDisposition); _ = mediaType
-	filename := metadata["filename"]
-
-	file, err := os.Create(manager.Destination + "/" + filename)
-
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-
-	writer := bufio.NewWriter(file); _ = writer
-
+	
 	for downloading {
 		req, err := http.NewRequest(http.MethodGet, url, nil); _ = req
 		req.Header = headers
@@ -128,15 +118,13 @@ func (manager *DownloadManager) DownloadFile(url string) error {
 		}
 		
 		// current range headers
-		responseHeader := res.Header
-		contentRange := responseHeader.Get("Content-Range")
+		contentRange := res.Header.Get("Content-Range")
 		var start, end, totalContentSize int64
 		fmt.Sscanf(contentRange, "bytes %d-%d/%d", &start, &end, &totalContentSize)
 		chunkSize := end - start + 1
-		fmt.Println(contentRange)
 
 		// write data to the file
-		bodyReader := res.Body; _ = bodyReader
+		bodyReader := res.Body;
 		
 		data := make([]byte, chunkSize)
 		n, err := bodyReader.Read(data)
@@ -145,8 +133,6 @@ func (manager *DownloadManager) DownloadFile(url string) error {
 		if err != nil {
 			fmt.Println(nn, err)
 		}
-
-		// fmt.Println(len(data), chunkSize)
 
 		if end + 1 == totalContentSize || end == totalContentSize {
 			downloading = false;
@@ -157,6 +143,79 @@ func (manager *DownloadManager) DownloadFile(url string) error {
 		}
 
 		headers.Set("Range", fmt.Sprintf("bytes=%d-", end + 1))
+	}
+
+	return nil
+}
+
+func DownloadFromBulk(url string, writer *bufio.Writer) error {
+	res, err := http.Get(url)
+
+	if err != nil {
+		return err
+	}
+
+	contentLength := res.ContentLength
+
+	bodyReader := res.Body
+	data := make([]byte, contentLength)
+	n, err := bodyReader.Read(data)
+	writer.Write(data[:n])
+
+	return nil
+}
+
+func (manager *DownloadManager) DownloadFile(url string) error {
+
+	if !isUrlValid(url) {
+		return errors.New("Invalid URL")
+	}
+
+	task := DownloadTask {
+		URL: url,
+	}
+	
+	manager.queue = append(manager.queue, task)
+
+	// first get headers
+	req, _ := http.Get(url)
+
+	contentDisposition := req.Header.Get("Content-Disposition")
+	contentType := req.Header.Get("Content-Type")
+
+	mediaType, metadata, _ := mime.ParseMediaType(contentDisposition); _ = mediaType
+	filename := metadata["filename"]
+	exts, err := mime.ExtensionsByType(contentType)
+
+	if filename == "" {
+		filename = fmt.Sprintf("%d", time.Now().Second())
+	}
+
+	if len(exts) == 0 || err != nil {
+		exts = append(exts, "")
+	}
+
+	filePath := manager.Destination + "/" + filename + exts[0]
+
+	file, err := os.Create(filePath)
+
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	writer := bufio.NewWriter(file); _ = writer
+
+	switch req.StatusCode {
+	case 206:
+		DownloadFromStream(url, writer)
+		
+	case 200:
+		DownloadFromBulk(url, writer)
+	
+	case 403:
+		fmt.Println("Request blocked by the server")
+		os.Remove(filePath)
 	}
 
 	return nil
