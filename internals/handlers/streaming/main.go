@@ -3,28 +3,28 @@ package streaming
 import (
 	"encoding/json"
 	"fmt"
-	"homelab/src/utils"
+	"homelab/internals/utils"
 	"net/http"
 	"os"
 	"path/filepath"
 )
 
 type FileDetails struct {
-	Name string `json:"name"`;
-	IsDir bool `json:"is_dir"`
-	Size int64 `json:"size"`
-	Type string `json:"type"`
+	Name  string `json:"name"`
+	IsDir bool   `json:"is_dir"`
+	Size  int64  `json:"size"`
+	Type  string `json:"type"`
 }
 
-var VideoHeaders = map[string]string {
-	".mp4": "video/mp4",
+var VideoHeaders = map[string]string{
+	".mp4":  "video/mp4",
 	".webm": "video/webm",
-	".avi": "video/x-msvide",
-	".mkv": "video/x-matroska",
-	".mov": "video/quicktime",
+	".avi":  "video/x-msvide",
+	".mkv":  "video/x-matroska",
+	".mov":  "video/quicktime",
 }
 
-const CHUNK_SIZE int64 = 100_000;
+const CHUNK_SIZE int64 = 100_000
 
 func SendChunk(writer http.ResponseWriter, request *http.Request) {
 
@@ -32,7 +32,7 @@ func SendChunk(writer http.ResponseWriter, request *http.Request) {
 
 	queryParams := request.URL.Query()
 
-	path := utils.If(queryParams.Get("path") != "", queryParams.Get("path"), ".");
+	path := utils.If(queryParams.Get("path") != "", queryParams.Get("path"), ".")
 
 	file, err := os.OpenFile(path, os.O_RDONLY, 0444)
 
@@ -57,7 +57,7 @@ func SendChunk(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	v := VideoHeaders[metadata.Type]
-	
+
 	if v == "" {
 		writer.WriteHeader(400)
 		fmt.Fprint(writer, metadata.Type, " isn't a valid video type")
@@ -73,23 +73,24 @@ func SendChunk(writer http.ResponseWriter, request *http.Request) {
 
 	// fmt.Println(rangeHeader)
 
-	totalContentSize := metadata.Size;
-	end := min(totalContentSize, start + CHUNK_SIZE)
+	totalContentSize := metadata.Size
+	end := min(totalContentSize, start+CHUNK_SIZE)
 
 	writer.Header().Set("Content-Type", v)
 	writer.Header().Set("Accept-Ranges", "bytes")
 	writer.Header().Set("Connection", "keep-alive")
 	writer.Header().Set("Keep-Alive", "timeout=5, max=100")
 	writer.Header().Set(
-		"Content-Range", 
-		fmt.Sprintf("bytes %d-%d/%d", start, end - 1, totalContentSize),
+		"Content-Range",
+		fmt.Sprintf("bytes %d-%d/%d", start, end-1, totalContentSize),
 	)
 	writer.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%s", metadata.Name))
 
-	var bytesToRead = end - start + 1;
+	var bytesToRead = end - start + 1
 	var bytes = make([]byte, bytesToRead)
 
-	n, err = file.ReadAt(bytes, start); _ = n
+	n, err = file.ReadAt(bytes, start)
+	_ = n
 
 	if err != nil {
 		fmt.Println(err)
@@ -105,7 +106,7 @@ func GetFileMetadata(writer http.ResponseWriter, request *http.Request) {
 
 	queryParams := request.URL.Query()
 
-	path := utils.If(queryParams.Get("path") != "", queryParams.Get("path"), ".");
+	path := utils.If(queryParams.Get("path") != "", queryParams.Get("path"), ".")
 
 	file, err := os.OpenFile(path, os.O_RDONLY, 0444)
 
@@ -128,15 +129,15 @@ func GetFileMetadata(writer http.ResponseWriter, request *http.Request) {
 	encoder.Encode(fileMetaData)
 }
 
-func GetFileMetadataFromInfo(info (os.FileInfo)) FileDetails {
+func GetFileMetadataFromInfo(info os.FileInfo) FileDetails {
 	name := info.Name()
 	ext := utils.If(info.IsDir(), "", filepath.Ext(name))
 
-	return FileDetails {
-			Name: name,
-			Size: info.Size(),
-			IsDir: info.IsDir(),
-			Type: ext,
+	return FileDetails{
+		Name:  name,
+		Size:  info.Size(),
+		IsDir: info.IsDir(),
+		Type:  ext,
 	}
 }
 
@@ -146,7 +147,7 @@ func ListFiles(writer http.ResponseWriter, request *http.Request) {
 
 	queryParams := request.URL.Query()
 
-	path := utils.If(queryParams.Get("path") != "", queryParams.Get("path"), ".");
+	path := utils.If(queryParams.Get("path") != "", queryParams.Get("path"), ".")
 
 	dirEntires, err := os.ReadDir(path)
 
@@ -161,7 +162,7 @@ func ListFiles(writer http.ResponseWriter, request *http.Request) {
 
 	writer.WriteHeader(http.StatusOK)
 
-	var dirs []FileDetails;
+	var dirs []FileDetails
 
 	for _, value := range dirEntires {
 		info, _ := value.Info()
@@ -169,5 +170,5 @@ func ListFiles(writer http.ResponseWriter, request *http.Request) {
 		dirs = append(dirs, GetFileMetadataFromInfo(info))
 	}
 
-	encoder.Encode(dirs);
+	encoder.Encode(dirs)
 }

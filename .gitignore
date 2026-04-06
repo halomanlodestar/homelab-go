@@ -29,5 +29,6 @@ downloads/*
 
 # Go workspace file
 go.work
+bin
 
 # End of https://www.toptal.com/developers/gitignore/api/go

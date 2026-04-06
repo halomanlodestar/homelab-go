@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"mime"
 	"net/http"
 	"os"
@@ -65,8 +64,10 @@ func (m *DownloadManager) PollDownloadProgress() {
 			continue
 		}
 
+		fmt.Printf("\033[2J\033[H")
+
 		for _, v := range m.tasks {
-			fmt.Printf("\r%s - %.0fMB/%.0fMB", v.FileName, math.Abs(convertToMb(v.DownloadedBytes)), convertToMb(v.TotalSize))
+			fmt.Printf("\r%s - %.0fMB/%.0fMB", v.FileName, convertToMb(v.DownloadedBytes), convertToMb(v.TotalSize))
 		}
 	}
 }
@@ -145,7 +146,7 @@ func (m *DownloadManager) DownloadFromStream(url string, writer *bufio.Writer) e
 
 		headers.Set("Range", fmt.Sprintf("bytes=%d-", end+1))
 
-		m.tasks[url].DownloadedBytes -= int64(n)
+		m.tasks[url].DownloadedBytes += int64(n)
 		m.updated <- true
 	}
 
@@ -164,7 +165,7 @@ func (m *DownloadManager) DownloadFromBulk(url string, writer *bufio.Writer) err
 		return err
 	}
 
-	const CHUNK_SIZE = 30 * MegaByte
+	const CHUNK_SIZE = 10 * MegaByte
 
 	bodyReader := res.Body
 	data := make([]byte, CHUNK_SIZE)
@@ -184,7 +185,7 @@ func (m *DownloadManager) DownloadFromBulk(url string, writer *bufio.Writer) err
 			return err
 		}
 
-		m.tasks[url].DownloadedBytes -= int64(n)
+		m.tasks[url].DownloadedBytes += int64(n)
 		m.updated <- true
 	}
 

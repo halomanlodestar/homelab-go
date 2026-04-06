@@ -2,19 +2,21 @@ package main
 
 import (
 	"fmt"
-	"homelab/src/handlers/downloads"
-	"homelab/src/handlers/streaming"
+	"homelab/internals/handlers/downloads"
+	"homelab/internals/handlers/streaming"
 	"net/http"
 )
 
 func main() {
-	
+
+	PORT := ":4080"
+
 	http.HandleFunc("/", streaming.ListFiles)
 	http.HandleFunc("/file", streaming.SendChunk)
 	http.HandleFunc("/try", downloads.TestDownload)
 	http.HandleFunc("/download", downloads.DownloadFileHandler)
-	
-	fmt.Println("Listening at 4080")
-	http.ListenAndServe(":4080", nil);
-	
+
+	fmt.Println("Server is running on", PORT)
+
+	http.ListenAndServe(PORT, nil)
 }
