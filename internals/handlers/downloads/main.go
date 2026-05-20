@@ -36,8 +36,6 @@ type DownloadManager struct {
 	updated     chan bool
 }
 
-func (m *DownloadManager) UpdateProgress() {}
-
 func TestDownload(w http.ResponseWriter, r *http.Request) {
 
 	cwd, err := os.Getwd()
@@ -58,16 +56,22 @@ func isUrlValid(_ string) bool {
 }
 
 func (m *DownloadManager) PollDownloadProgress() {
+
+	fmt.Printf("\033[2J")
+	// fmt.Printf("\033[H")
+
 	for {
 
 		if u := <-m.updated; !u {
 			continue
 		}
 
-		fmt.Printf("\033[2J\033[H")
+		i := 1
 
 		for _, v := range m.tasks {
-			fmt.Printf("\r%s - %.0fMB/%.0fMB", v.FileName, convertToMb(v.DownloadedBytes), convertToMb(v.TotalSize))
+			fmt.Printf("\033[%d;1H %s - %.0fMB/%.0fMB", i, v.FileName, convertToMb(v.DownloadedBytes), convertToMb(v.TotalSize))
+
+			i++
 		}
 	}
 }
@@ -242,11 +246,9 @@ func (manager *DownloadManager) DownloadFile(url string) error {
 
 	switch req.StatusCode {
 	case 206:
-		fmt.Println("Downloading from stream")
 		go manager.DownloadFromStream(url, writer)
 
 	case 200:
-		fmt.Println("Downloading from bulk")
 		go manager.DownloadFromBulk(url, writer)
 
 	case 403:
